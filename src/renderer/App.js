@@ -26,7 +26,13 @@ import "typeface-roboto/index.css";
 import "typeface-source-code-pro/index.css";
 import { LocationProvider, Router } from "@reach/router";
 
+import Button from "@material-ui/core/Button";
 import CssBaseline from "@material-ui/core/CssBaseline";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogTitle from "@material-ui/core/DialogTitle";
+import TextField from "@material-ui/core/TextField";
 import { withStyles } from "@material-ui/core/styles";
 import { MuiThemeProvider } from "@material-ui/core/styles";
 import { lightTheme } from "../styles/lightTheme";
@@ -48,6 +54,9 @@ import { history, navigate } from "./routerHistory";
 
 import { isDevelopment } from "./config";
 
+import Electron from "electron";
+import Mousetrap from "mousetrap";
+
 let focus = new Focus();
 if (isDevelopment) {
   focus.debug = true;
@@ -55,7 +64,7 @@ if (isDevelopment) {
 
 if (settings.get("ui.language")) i18n.setLanguage(settings.get("ui.language"));
 
-const styles = () => ({
+const styles = theme => ({
   root: {
     display: "flex",
     flexDirection: "column"
@@ -63,6 +72,12 @@ const styles = () => ({
   content: {
     flexGrow: 1,
     overflow: "auto"
+  },
+  debugLog: {
+    position: "fixed",
+    justifyContent: "flex-end",
+    bottom: theme.spacing.unit * 2,
+    left: theme.spacing.unit * 4
   }
 });
 
@@ -76,13 +91,45 @@ class App extends React.Component {
       device: null,
       pages: {},
       contextBar: false,
-      cancelPendingOpen: false
+      cancelPendingOpen: false,
+      consoleLog: [],
+      debugLogVisible: false
     };
     localStorage.clear();
   }
   flashing = false;
 
+  closeDebugLog = () => {
+    this.setState({ debugLogVisible: false });
+  };
+  openDebugLog = () => {
+    this.setState({ debugLogVisible: true });
+  };
+
+  captureDebugLog = (event, level, message, line, sourceId) => {
+    this.setState(state => ({
+      consoleLog: state.consoleLog.concat([
+        {
+          event: event,
+          level: level,
+          message: message,
+          line: line,
+          sourceId: sourceId
+        }
+      ])
+    }));
+  };
+
   componentDidMount() {
+    Mousetrap.bind("ctrl+shift+d", () => {
+      this.openDebugLog();
+    });
+
+    const webContents = Electron.remote.webContents.getAllWebContents();
+    for (let wc of webContents) {
+      wc.on("console-message", this.captureDebugLog);
+    }
+
     usb.on("detach", async device => {
       if (!focus.device) return;
       if (this.flashing) return;
@@ -209,9 +256,47 @@ class App extends React.Component {
     this.setState({ contextBar: true });
   };
 
+  formatLog = log => {
+    let msg = "";
+    for (const line of log) {
+      msg +=
+        line.sourceId +
+        ":" +
+        line.line.toString() +
+        ": " +
+        line.message +
+        "\n\n";
+    }
+    return msg;
+  };
+
   render() {
     const { classes } = this.props;
     const { connected, pages, contextBar } = this.state;
+
+    const debugLog = (
+      <Dialog
+        fullWidth={true}
+        maxWidth={"xl"}
+        open={this.state.debugLogVisible}
+        onClose={this.closeDebugLog}
+      >
+        <DialogTitle>Debug log</DialogTitle>
+        <DialogContent>
+          <TextField
+            variant="outlined"
+            multiline
+            fullWidth
+            value={this.formatLog(this.state.consoleLog)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={this.closeDebugLog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
 
     let focus = new Focus();
     let device =
@@ -273,6 +358,10 @@ class App extends React.Component {
               </Router>
             </main>
           </LocationProvider>
+          <Button className={classes.debugLog} onClick={this.openDebugLog}>
+            Debug log
+          </Button>
+          {debugLog}
           <ConfirmationDialog
             title={i18n.app.cancelPending.title}
             open={this.state.cancelPendingOpen}

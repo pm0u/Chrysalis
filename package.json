@@ -47,15 +47,16 @@
     }
   },
   "dependencies": {
-    "avrgirl-arduino": "algernon/avrgirl-arduino#avr109-optional-close",
     "@material-ui/core": "^3.9.2",
     "@material-ui/icons": "^3.0.1",
     "@material-ui/lab": "^3.0.0-alpha.30",
     "@reach/router": "^1.2.1",
+    "avrgirl-arduino": "algernon/avrgirl-arduino#avr109-optional-close",
     "classnames": "^2.2.6",
     "electron-devtools-installer": "^2.2.4",
     "electron-settings": "^3.2.0",
     "electron-window-state": "^5.0.3",
+    "mousetrap": "^1.6.5",
     "notistack": "^0.9.7",
     "prop-types": "^15.7.2",
     "react": "^16.8.5",

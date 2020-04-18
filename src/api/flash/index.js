@@ -21,10 +21,47 @@ import { spawn } from "child_process";
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 async function AvrDude(board, port, filename, options) {
-  console.log("debug", port, filename, options);
+  const runCommand = async args => {
+    return new Promise((resolve, reject) => {
+      let child = spawn("avrdude", args);
+      child.stdout.on("data", data => {
+        console.log("avrdude:stdout:", data.toString());
+      });
+      child.stderr.on("data", data => {
+        console.log("avrdude:stderr:", data.toString());
+      });
+      let timer = setTimeout(() => {
+        child.kill();
+        reject("avrdude timed out");
+      }, timeout);
+      child.on("exit", code => {
+        clearTimeout(timer);
+        if (code == 0) {
+          resolve();
+        } else {
+          reject("avrdude exited abnormally");
+        }
+      });
+    });
+  };
+
+  await runCommand([
+    "-q",
+    "-q",
+    "-patmega32u4",
+    "-cavr109",
+    "-D",
+    "-P",
+    port.path,
+    "-b57600",
+    "-Uflash:w:" + filename + ":o"
+  ]);
 }
 
 async function Avr109Bootloader(board, port, filename) {
+  if (process.platform == "win32")
+    return AvrDude(board, port, filename, options);
+
   const avrgirl = new AvrGirl({
     board: board,
     debug: true,
@@ -59,9 +96,6 @@ async function Avr109(board, port, filename, options) {
     dtrToggle: 500, // Time to wait (ms) between toggling DTR
     bootLoaderUp: 4000 // Time to wait for the boot loader to come up
   };
-
-  if (process.platform == "win32")
-    return AvrDude(board, port, filename, options);
 
   return new Promise((resolve, reject) => {
     callback("reset");

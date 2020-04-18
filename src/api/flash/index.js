@@ -17,13 +17,19 @@
 import AvrGirl from "avrgirl-arduino";
 import TeensyLoader from "teensy-loader";
 import { spawn } from "child_process";
+import path from "path";
+
+import { getStaticPath } from "../../renderer/config";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-async function AvrDude(board, port, filename, options) {
+async function AvrDude(_, port, filename) {
+  const timeout = 5000;
   const runCommand = async args => {
     return new Promise((resolve, reject) => {
-      let child = spawn("avrdude", args);
+      const avrdude = path.join(getStaticPath(), "avrdude", "avrdude");
+      console.log("debug", avrdude);
+      let child = spawn(avrdude, args);
       child.stdout.on("data", data => {
         console.log("avrdude:stdout:", data.toString());
       });
@@ -45,21 +51,34 @@ async function AvrDude(board, port, filename, options) {
     });
   };
 
+  console.log("closing...");
+  try {
+    await port.close();
+  } catch (_) {
+    /* ignore the error */
+  }
+  console.log("waiting 5s");
+  await delay(5000);
+  console.log("launching avrdude...");
+
+  const configFile = path.join(getStaticPath(), "avrdude", "avrdude.conf");
   await runCommand([
-    "-q",
-    "-q",
+    "-C",
+    configFile,
+    "-v",
+    "-v",
     "-patmega32u4",
     "-cavr109",
     "-D",
     "-P",
     port.path,
     "-b57600",
-    "-Uflash:w:" + filename + ":o"
+    '-Uflash:w:"' + filename + '":i'
   ]);
 }
 
-async function Avr109Bootloader(board, port, filename) {
-  if (process.platform == "win32")
+async function Avr109Bootloader(board, port, filename, options) {
+  if (process.platform == "win32" || process.platform == "linux")
     return AvrDude(board, port, filename, options);
 
   const avrgirl = new AvrGirl({
@@ -111,7 +130,7 @@ async function Avr109(board, port, filename, options) {
           await delay(timeouts.bootLoaderUp);
           await callback("flash");
           try {
-            await Avr109Bootloader(board, port, filename, timeouts);
+            await Avr109Bootloader(board, port, filename, options);
             resolve();
           } catch (e) {
             await callback("error");

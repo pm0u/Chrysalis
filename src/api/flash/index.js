@@ -24,7 +24,7 @@ import { getStaticPath } from "../../renderer/config";
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 async function AvrDude(_, port, filename) {
-  const timeout = 5000;
+  const timeout = 1000 * 60 * 5;
   const runCommand = async args => {
     return new Promise((resolve, reject) => {
       const avrdude = path.join(getStaticPath(), "avrdude", "avrdude");

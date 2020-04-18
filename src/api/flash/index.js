@@ -73,7 +73,7 @@ async function AvrDude(_, port, filename) {
     "-P",
     port.path,
     "-b57600",
-    '-Uflash:w:"' + filename + '":i'
+    "-Uflash:w:" + filename + ":i"
   ]);
 }
 
